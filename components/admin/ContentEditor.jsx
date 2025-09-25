@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiGet, apiPost } from '../../lib/api-utils';
 
 export default function ContentEditor() {
   const [content, setContent] = useState({
@@ -19,12 +20,7 @@ export default function ContentEditor() {
 
   const fetchCurrentContent = async () => {
     try {
-      const response = await fetch('/api/admin/get-content', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await apiGet('/api/admin/get-content');
       if (data.success) {
         setContent(data.content);
       }
@@ -58,16 +54,7 @@ export default function ContentEditor() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/admin/update-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ content })
-      });
-
-      const data = await response.json();
+      const data = await apiPost('/api/admin/update-content', { content });
       if (data.success) {
         setMessage('内容更新成功！');
       } else {

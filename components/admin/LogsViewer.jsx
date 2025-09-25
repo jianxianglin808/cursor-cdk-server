@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiGet, apiPost } from '../../lib/api-utils';
 
 export default function LogsViewer() {
   const [logs, setLogs] = useState([]);
@@ -24,13 +25,7 @@ export default function LogsViewer() {
         ...filters
       });
       
-      const response = await fetch(`/api/admin/logs?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
-      });
-      
-      const data = await response.json();
+      const data = await apiGet(`/api/admin/logs?${params}`);
       if (data.success) {
         setLogs(data.logs);
         setPagination(prev => ({ ...prev, total: data.total }));
@@ -50,16 +45,7 @@ export default function LogsViewer() {
     }
 
     try {
-      const response = await fetch('/api/admin/logs/clear', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ timeRange })
-      });
-      
-      const data = await response.json();
+      const data = await apiPost('/api/admin/logs/clear', { timeRange });
       if (data.success) {
         setMessage(`成功清除 ${data.deletedCount} 条日志记录`);
         loadLogs();

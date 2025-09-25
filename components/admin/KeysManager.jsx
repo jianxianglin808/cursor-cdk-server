@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiGet, apiPost } from '../../lib/api-utils';
 
 export default function KeysManager() {
   const [keys, setKeys] = useState({
@@ -21,12 +22,7 @@ export default function KeysManager() {
 
   const fetchCurrentKeys = async () => {
     try {
-      const response = await fetch('/api/admin/get-keys', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await apiGet('/api/admin/get-keys');
       if (data.success) {
         setKeys(data.keys);
       }
@@ -77,16 +73,7 @@ export default function KeysManager() {
     }
 
     try {
-      const response = await fetch('/api/admin/update-keys', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ keys })
-      });
-
-      const data = await response.json();
+      const data = await apiPost('/api/admin/update-keys', { keys });
       if (data.success) {
         setMessage('密钥更新成功！服务器将在30秒内重启生效。');
       } else {

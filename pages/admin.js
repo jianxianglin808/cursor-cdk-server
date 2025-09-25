@@ -4,6 +4,7 @@ import KeysManager from '../components/admin/KeysManager';
 import ContentEditor from '../components/admin/ContentEditor';
 import CDKManager from '../components/admin/CDKManager';
 import LogsViewer from '../components/admin/LogsViewer';
+import { apiGet, apiPost } from '../lib/api-utils';
 
 // 数据库管理组件
 function DatabaseManager() {
@@ -20,12 +21,7 @@ function DatabaseManager() {
   const checkDatabaseStatus = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/database-status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
-      });
-      const data = await response.json();
+      const data = await apiGet('/api/admin/database-status');
       if (data.success) {
         setDbStatus(data.status);
         setDbStats(data.stats);
@@ -43,18 +39,19 @@ function DatabaseManager() {
     setInitLoading(true);
     setMessage('');
     try {
-      const response = await fetch('/api/admin/init-database', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ force })
-      });
-      const data = await response.json();
+      // 尝试修复版接口
+      let data;
+      try {
+        data = await apiPost('/api/admin/init-db-fix', { force });
+      } catch (fixError) {
+        console.warn('修复版接口失败，尝试原接口:', fixError.message);
+        // 如果修复版失败，尝试原接口
+        data = await apiPost('/api/admin/init-database', { force });
+      }
+      
       if (data.success) {
         setMessage('数据库初始化成功！已创建/更新数据表和默认配置。');
-        setDbStats(data.stats);
+        setDbStats(data.details?.stats || data.stats);
         checkDatabaseStatus();
       } else {
         setMessage('数据库初始化失败: ' + data.message);
@@ -459,15 +456,7 @@ export default function AdminPanel() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(loginForm),
-      });
-
-      const data = await response.json();
+      const data = await apiPost('/api/admin/login', loginForm);
       if (data.success) {
         localStorage.setItem('admin_token', data.token);
         setIsLoggedIn(true);

@@ -29,6 +29,15 @@ export default async function handler(req, res) {
     // 验证管理员权限
     verifyAdmin(req);
     
+    // 检查数据库连接是否配置
+    if (!process.env.POSTGRES_URL) {
+      return res.status(500).json({
+        success: false,
+        message: '数据库连接未配置。请在Vercel项目设置中添加POSTGRES_URL环境变量。',
+        configRequired: true
+      });
+    }
+    
     const { 
       page = 1, 
       limit = 20, 
@@ -94,9 +103,19 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('获取CDK列表失败:', error);
-    res.status(403).json({
+    
+    // 根据错误类型返回更明确的错误信息
+    let errorMessage = error.message;
+    if (error.message.includes('relation "cdks" does not exist')) {
+      errorMessage = '数据库表未初始化。请先在"数据库管理"页面点击"初始化数据库"。';
+    } else if (error.message.includes('connection')) {
+      errorMessage = '数据库连接失败。请检查POSTGRES_URL环境变量配置。';
+    }
+    
+    res.status(500).json({
       success: false,
-      message: error.message
+      message: errorMessage,
+      needsInit: error.message.includes('relation "cdks" does not exist')
     });
   }
 }

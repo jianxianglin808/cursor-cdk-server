@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiGet, apiPost } from '../../lib/api-utils';
 
 export default function CDKManager() {
   const [cdks, setCdks] = useState([]);
@@ -20,13 +21,7 @@ export default function CDKManager() {
         ...filters
       });
       
-      const response = await fetch(`/api/admin/cdks?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
-      });
-      
-      const data = await response.json();
+      const data = await apiGet(`/api/admin/cdks?${params}`);
       if (data.success) {
         setCdks(data.cdks);
         setPagination(prev => ({ ...prev, total: data.total }));
@@ -42,16 +37,7 @@ export default function CDKManager() {
 
   const updateCDKStatus = async (cdkCode, newStatus) => {
     try {
-      const response = await fetch('/api/admin/cdks/update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ cdk_code: cdkCode, status: newStatus })
-      });
-      
-      const data = await response.json();
+      const data = await apiPost('/api/admin/cdks/update', { cdk_code: cdkCode, status: newStatus });
       if (data.success) {
         setMessage('CDK状态更新成功');
         loadCDKs();
@@ -65,16 +51,7 @@ export default function CDKManager() {
 
   const generateCDK = async (type, count = 1) => {
     try {
-      const response = await fetch('/api/admin/cdks/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        },
-        body: JSON.stringify({ type, count })
-      });
-      
-      const data = await response.json();
+      const data = await apiPost('/api/admin/cdks/generate', { type, count });
       if (data.success) {
         setMessage(`成功生成 ${count} 个 ${type} 类型的CDK`);
         loadCDKs();
