@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './ContentEditor.css';
 
 export default function ContentEditor() {
   const [content, setContent] = useState({

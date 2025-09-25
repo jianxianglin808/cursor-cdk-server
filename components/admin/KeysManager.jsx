@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './KeysManager.css';
 
 export default function KeysManager() {
   const [keys, setKeys] = useState({
