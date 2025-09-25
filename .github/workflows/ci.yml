@@ -1,3 +1,5 @@
+# GitHub Actions CI/CD Pipeline for Cursor CDK Server
+# Note: IDE warnings about secrets access are normal - these will be resolved when secrets are properly configured
 name: CI/CD Pipeline
 
 on:
@@ -35,16 +37,10 @@ jobs:
       run: npm run build
       
     - name: Run health check (if database available)
-      run: |
-        if [ -n "$TEST_POSTGRES_URL" ]; then
-          npm run db:health || echo "Database tests skipped - no test database available"
-        else
-          echo "Database tests skipped - no test database configured"
-        fi
+      run: npm run db:health || echo "Database tests skipped - no test database available"
       env:
         POSTGRES_URL: ${{ secrets.TEST_POSTGRES_URL }}
         KV_URL: ${{ secrets.TEST_KV_URL }}
-        TEST_POSTGRES_URL: ${{ secrets.TEST_POSTGRES_URL }}
       continue-on-error: true
 
   security-scan:
@@ -82,21 +78,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Check Vercel secrets
-      run: |
-        if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-          echo "❌ Missing required Vercel secrets. Please check GITHUB_SECRETS_SETUP.md"
-          echo "Skipping deployment..."
-          exit 0
-        fi
-        echo "✅ All Vercel secrets are configured"
-      env:
-        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      
     - name: Deploy to Vercel Preview
-      if: ${{ secrets.VERCEL_TOKEN != '' }}
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -135,21 +117,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Check Vercel secrets
-      run: |
-        if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-          echo "❌ Missing required Vercel secrets. Please check GITHUB_SECRETS_SETUP.md"
-          echo "Skipping deployment..."
-          exit 0
-        fi
-        echo "✅ All Vercel secrets are configured"
-      env:
-        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      
     - name: Deploy to Vercel Production
-      if: ${{ secrets.VERCEL_TOKEN != '' }}
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
