@@ -3,24 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
-  // API Routes配置
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: '/api/:path*',
-      },
-    ]
-  },
-  
   // 环境变量
   env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
-  },
-  
-  // Vercel特殊配置
-  experimental: {
-    runtime: 'nodejs',
+    HMAC_KEY: process.env.HMAC_KEY,
+    WEB_AES_KEY: process.env.WEB_AES_KEY,
+    NODE_AES_KEY: process.env.NODE_AES_KEY,
   }
 }
 

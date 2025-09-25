@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cursor-cdk-server.vercel.app/sitemap.xml
