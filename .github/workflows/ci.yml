@@ -76,7 +76,7 @@ jobs:
   deploy-preview:
     name: Deploy Preview
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && vars.ENABLE_VERCEL_DEPLOY != 'false'
+    if: github.event_name == 'pull_request'
     
     steps:
     - name: Checkout code
@@ -86,7 +86,8 @@ jobs:
       run: |
         if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
           echo "❌ Missing required Vercel secrets. Please check GITHUB_SECRETS_SETUP.md"
-          exit 1
+          echo "Skipping deployment..."
+          exit 0
         fi
         echo "✅ All Vercel secrets are configured"
       env:
@@ -95,6 +96,7 @@ jobs:
         VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       
     - name: Deploy to Vercel Preview
+      if: ${{ secrets.VERCEL_TOKEN != '' }}
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -127,7 +129,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [lint-and-test, security-scan]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_VERCEL_DEPLOY != 'false'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
     - name: Checkout code
@@ -137,7 +139,8 @@ jobs:
       run: |
         if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
           echo "❌ Missing required Vercel secrets. Please check GITHUB_SECRETS_SETUP.md"
-          exit 1
+          echo "Skipping deployment..."
+          exit 0
         fi
         echo "✅ All Vercel secrets are configured"
       env:
@@ -146,6 +149,7 @@ jobs:
         VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       
     - name: Deploy to Vercel Production
+      if: ${{ secrets.VERCEL_TOKEN != '' }}
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}

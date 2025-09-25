@@ -9,10 +9,7 @@
 3. 在左侧菜单中选择 **Secrets and variables** > **Actions**
 4. 点击 **New repository secret** 按钮
 
-## 📋 必需的Secrets和Variables
-
-### 🔑 Repository Secrets (必需)
-访问：Settings → Secrets and variables → Actions → Secrets
+## 📋 必需的Secrets
 
 ### Vercel部署相关
 ```
@@ -41,17 +38,6 @@ TEST_POSTGRES_URL
 TEST_KV_URL
 - 描述: 测试用Redis数据库URL
 - 示例: redis://user:pass@host:6379
-```
-
-### 📊 Repository Variables (可选)
-访问：Settings → Secrets and variables → Actions → Variables
-
-```
-ENABLE_VERCEL_DEPLOY
-- 描述: 是否启用Vercel自动部署
-- 默认值: true (不设置时默认启用)
-- 可选值: true/false
-- 用途: 设为false可禁用自动部署
 ```
 
 ## 🚀 获取Vercel配置信息
