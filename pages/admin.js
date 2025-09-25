@@ -1,5 +1,237 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import KeysManager from '../components/admin/KeysManager';
+import ContentEditor from '../components/admin/ContentEditor';
+
+// 数据库管理组件
+function DatabaseManager() {
+  const [dbStatus, setDbStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    checkDatabaseStatus();
+  }, []);
+
+  const checkDatabaseStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/database-status', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setDbStatus(data.status);
+      } else {
+        setMessage('获取数据库状态失败: ' + data.message);
+      }
+    } catch (error) {
+      setMessage('获取数据库状态失败: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initializeDatabase = async () => {
+    setLoading(true);
+    setMessage('');
+    try {
+      const response = await fetch('/api/admin/init-database', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMessage('数据库初始化成功！');
+        checkDatabaseStatus();
+      } else {
+        setMessage('数据库初始化失败: ' + data.message);
+      }
+    } catch (error) {
+      setMessage('数据库初始化失败: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 style={{ color: '#333', marginBottom: '1.5rem' }}>🗄️ 数据库管理</h2>
+      
+      {message && (
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          backgroundColor: message.includes('成功') ? '#d4edda' : '#f8d7da',
+          color: message.includes('成功') ? '#155724' : '#721c24',
+          border: `1px solid ${message.includes('成功') ? '#c3e6cb' : '#f5c6cb'}`
+        }}>
+          {message}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gap: '24px' }}>
+        {/* 数据库状态 */}
+        <div style={{
+          background: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ color: '#333', marginBottom: '16px' }}>📊 数据库状态</h3>
+          
+          {loading ? (
+            <p style={{ color: '#666' }}>检查中...</p>
+          ) : dbStatus ? (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                  <h4 style={{ color: '#28a745', margin: '0 0 8px 0' }}>PostgreSQL</h4>
+                  <p style={{ color: '#666', margin: 0 }}>
+                    状态: {dbStatus.postgres ? '✅ 连接正常' : '❌ 连接失败'}
+                  </p>
+                </div>
+                <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                  <h4 style={{ color: '#dc3545', margin: '0 0 8px 0' }}>Redis (KV)</h4>
+                  <p style={{ color: '#666', margin: 0 }}>
+                    状态: {dbStatus.redis ? '✅ 连接正常' : '❌ 连接失败'}
+                  </p>
+                </div>
+              </div>
+              
+              {dbStatus.tables && (
+                <div style={{ marginTop: '16px' }}>
+                  <h4 style={{ color: '#333', marginBottom: '8px' }}>数据表状态</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                    {Object.entries(dbStatus.tables).map(([table, exists]) => (
+                      <div key={table} style={{
+                        padding: '8px 12px',
+                        background: exists ? '#d4edda' : '#f8d7da',
+                        color: exists ? '#155724' : '#721c24',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}>
+                        {table}: {exists ? '✅' : '❌'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p style={{ color: '#666' }}>无法获取数据库状态</p>
+          )}
+        </div>
+
+        {/* 数据库操作 */}
+        <div style={{
+          background: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ color: '#333', marginBottom: '16px' }}>🔧 数据库操作</h3>
+          
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <button
+              onClick={checkDatabaseStatus}
+              disabled={loading}
+              style={{
+                padding: '12px 24px',
+                background: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              {loading ? '检查中...' : '🔄 刷新状态'}
+            </button>
+            
+            <button
+              onClick={initializeDatabase}
+              disabled={loading}
+              style={{
+                padding: '12px 24px',
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              {loading ? '初始化中...' : '🚀 初始化数据库'}
+            </button>
+          </div>
+
+          <div style={{
+            marginTop: '16px',
+            padding: '16px',
+            background: '#fff3cd',
+            border: '1px solid #ffeaa7',
+            borderRadius: '6px'
+          }}>
+            <h4 style={{ color: '#856404', margin: '0 0 8px 0' }}>⚠️ 注意事项</h4>
+            <ul style={{ color: '#856404', fontSize: '14px', margin: 0, paddingLeft: '20px' }}>
+              <li>初始化操作将创建所有必需的数据表</li>
+              <li>如果表已存在，将跳过创建步骤</li>
+              <li>建议在首次部署时执行初始化</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* 表结构信息 */}
+        <div style={{
+          background: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ color: '#333', marginBottom: '16px' }}>📋 数据表结构</h3>
+          
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {[
+              { name: 'cdks', description: 'CDK激活码管理', fields: ['cdk_code', 'cdk_type', 'status', 'activated_at', 'expires_at'] },
+              { name: 'user_devices', description: '用户设备绑定', fields: ['author_id', 'device_code', 'cdk_code', 'bound_at'] },
+              { name: 'points_records', description: '积分记录管理', fields: ['cdk_code', 'points_balance', 'usage_history'] },
+              { name: 'content_settings', description: '内容配置管理', fields: ['content_data', 'updated_by', 'updated_at'] },
+              { name: 'admin_logs', description: '管理操作日志', fields: ['admin_username', 'action', 'details', 'created_at'] }
+            ].map(table => (
+              <div key={table.name} style={{
+                padding: '16px',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px'
+              }}>
+                <h4 style={{ color: '#333', margin: '0 0 8px 0' }}>{table.name}</h4>
+                <p style={{ color: '#666', fontSize: '14px', margin: '0 0 8px 0' }}>{table.description}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {table.fields.map(field => (
+                    <span key={field} style={{
+                      padding: '2px 8px',
+                      background: '#e9ecef',
+                      color: '#495057',
+                      borderRadius: '3px',
+                      fontSize: '12px'
+                    }}>
+                      {field}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPanel() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -365,60 +597,15 @@ export default function AdminPanel() {
             )}
 
             {currentView === 'keys' && (
-              <div>
-                <h2 style={{ color: '#333', marginBottom: '1.5rem' }}>🔐 密钥管理</h2>
-                <div style={{
-                  background: 'white',
-                  padding: '2rem',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  <p style={{ color: '#666', textAlign: 'center', fontSize: '16px' }}>
-                    密钥管理功能正在开发中...
-                  </p>
-                  <p style={{ color: '#666', textAlign: 'center', fontSize: '14px', marginTop: '1rem' }}>
-                    当前使用的是基于端到端API报告的标准密钥配置
-                  </p>
-                </div>
-              </div>
+              <KeysManager />
             )}
 
             {currentView === 'content' && (
-              <div>
-                <h2 style={{ color: '#333', marginBottom: '1.5rem' }}>📝 内容管理</h2>
-                <div style={{
-                  background: 'white',
-                  padding: '2rem',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  <p style={{ color: '#666', textAlign: 'center', fontSize: '16px' }}>
-                    内容编辑功能正在开发中...
-                  </p>
-                  <p style={{ color: '#666', textAlign: 'center', fontSize: '14px', marginTop: '1rem' }}>
-                    即将支持广告内容、提示信息等的在线编辑
-                  </p>
-                </div>
-              </div>
+              <ContentEditor />
             )}
 
             {currentView === 'database' && (
-              <div>
-                <h2 style={{ color: '#333', marginBottom: '1.5rem' }}>🗄️ 数据库管理</h2>
-                <div style={{
-                  background: 'white',
-                  padding: '2rem',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  <p style={{ color: '#666', textAlign: 'center', fontSize: '16px' }}>
-                    数据库管理功能正在开发中...
-                  </p>
-                  <p style={{ color: '#666', textAlign: 'center', fontSize: '14px', marginTop: '1rem' }}>
-                    即将支持CDK管理、用户设备、积分记录等数据的管理
-                  </p>
-                </div>
-              </div>
+              <DatabaseManager />
             )}
           </div>
         </div>
