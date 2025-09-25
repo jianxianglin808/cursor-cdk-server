@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import KeysManager from '../components/admin/KeysManager';
 import ContentEditor from '../components/admin/ContentEditor';
+import CDKManager from '../components/admin/CDKManager';
+import LogsViewer from '../components/admin/LogsViewer';
 
 // 数据库管理组件
 function DatabaseManager() {
   const [dbStatus, setDbStatus] = useState(null);
+  const [dbStats, setDbStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [initLoading, setInitLoading] = useState(false);
 
   useEffect(() => {
     checkDatabaseStatus();
@@ -24,6 +28,7 @@ function DatabaseManager() {
       const data = await response.json();
       if (data.success) {
         setDbStatus(data.status);
+        setDbStats(data.stats);
       } else {
         setMessage('获取数据库状态失败: ' + data.message);
       }
@@ -34,19 +39,22 @@ function DatabaseManager() {
     }
   };
 
-  const initializeDatabase = async () => {
-    setLoading(true);
+  const initializeDatabase = async (force = false) => {
+    setInitLoading(true);
     setMessage('');
     try {
       const response = await fetch('/api/admin/init-database', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
-        }
+        },
+        body: JSON.stringify({ force })
       });
       const data = await response.json();
       if (data.success) {
-        setMessage('数据库初始化成功！');
+        setMessage('数据库初始化成功！已创建/更新数据表和默认配置。');
+        setDbStats(data.stats);
         checkDatabaseStatus();
       } else {
         setMessage('数据库初始化失败: ' + data.message);
@@ -54,7 +62,7 @@ function DatabaseManager() {
     } catch (error) {
       setMessage('数据库初始化失败: ' + error.message);
     } finally {
-      setLoading(false);
+      setInitLoading(false);
     }
   };
 
@@ -89,19 +97,66 @@ function DatabaseManager() {
             <p style={{ color: '#666' }}>检查中...</p>
           ) : dbStatus ? (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
-                  <h4 style={{ color: '#28a745', margin: '0 0 8px 0' }}>PostgreSQL</h4>
-                  <p style={{ color: '#666', margin: 0 }}>
-                    状态: {dbStatus.postgres ? '✅ 连接正常' : '❌ 连接失败'}
-                  </p>
+              {/* 整体状态 */}
+              <div style={{
+                padding: '16px',
+                marginBottom: '20px',
+                borderRadius: '8px',
+                textAlign: 'center',
+                backgroundColor: dbStatus.overall?.status === 'healthy' ? '#d4edda' : '#f8d7da',
+                border: `2px solid ${dbStatus.overall?.status === 'healthy' ? '#28a745' : '#dc3545'}`
+              }}>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: dbStatus.overall?.status === 'healthy' ? '#155724' : '#721c24'
+                }}>
+                  {dbStatus.overall?.status === 'healthy' ? '✅ 系统运行正常' : '❌ 系统存在问题'}
                 </div>
-                <div style={{ padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
-                  <h4 style={{ color: '#dc3545', margin: '0 0 8px 0' }}>Redis (KV)</h4>
-                  <p style={{ color: '#666', margin: 0 }}>
-                    状态: {dbStatus.redis ? '✅ 连接正常' : '❌ 连接失败'}
-                  </p>
+                <div style={{ fontSize: '14px', marginTop: '5px', opacity: 0.8 }}>
+                  {dbStatus.overall?.message}
                 </div>
+              </div>
+
+              {/* 详细状态 */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+                {Object.entries(dbStatus).filter(([key]) => key !== 'overall').map(([key, status]) => (
+                  <div key={key} style={{
+                    padding: '16px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: `2px solid ${status.status === 'healthy' ? '#28a745' : status.status === 'warning' ? '#ffc107' : '#dc3545'}`
+                  }}>
+                    <h4 style={{
+                      margin: '0 0 8px 0',
+                      color: status.status === 'healthy' ? '#28a745' : status.status === 'warning' ? '#856404' : '#dc3545'
+                    }}>
+                      {key === 'postgres' ? '🐘 PostgreSQL' : 
+                       key === 'redis' ? '🔴 Redis' : 
+                       key === 'tables' ? '📋 数据表' : key}
+                    </h4>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: status.status === 'healthy' ? '#155724' : status.status === 'warning' ? '#856404' : '#721c24'
+                    }}>
+                      {status.status === 'healthy' ? '✅ 正常' : status.status === 'warning' ? '⚠️ 警告' : '❌ 错误'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                      {status.message}
+                    </div>
+                    {status.responseTime !== undefined && (
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                        响应时间: {status.responseTime}ms
+                      </div>
+                    )}
+                    {status.count !== undefined && (
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                        表数量: {status.count}/5
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
               
               {dbStatus.tables && (
@@ -155,19 +210,35 @@ function DatabaseManager() {
             </button>
             
             <button
-              onClick={initializeDatabase}
-              disabled={loading}
+              onClick={() => initializeDatabase(false)}
+              disabled={initLoading}
               style={{
                 padding: '12px 24px',
                 background: '#28a745',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor: initLoading ? 'not-allowed' : 'pointer',
                 fontWeight: '500'
               }}
             >
-              {loading ? '初始化中...' : '🚀 初始化数据库'}
+              {initLoading ? '初始化中...' : '🚀 初始化数据库'}
+            </button>
+            
+            <button
+              onClick={() => initializeDatabase(true)}
+              disabled={initLoading}
+              style={{
+                padding: '12px 24px',
+                background: '#ffc107',
+                color: '#212529',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: initLoading ? 'not-allowed' : 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              {initLoading ? '重置中...' : '⚠️ 强制重置'}
             </button>
           </div>
 
@@ -228,6 +299,140 @@ function DatabaseManager() {
             ))}
           </div>
         </div>
+
+        {/* 数据库统计 */}
+        {dbStats && !dbStats.error && (
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ color: '#333', marginBottom: '16px' }}>📈 数据统计</h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* CDK统计 */}
+              {dbStats.cdks && (
+                <div style={{
+                  padding: '16px',
+                  background: '#e3f2fd',
+                  borderRadius: '8px',
+                  border: '1px solid #bbdefb'
+                }}>
+                  <h4 style={{ color: '#1976d2', margin: '0 0 12px 0' }}>🎟️ CDK激活码</h4>
+                  {Object.entries(dbStats.cdks).map(([status, count]) => (
+                    <div key={status} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '6px',
+                      fontSize: '14px'
+                    }}>
+                      <span style={{ textTransform: 'capitalize' }}>
+                        {status === 'active' ? '已激活' : 
+                         status === 'unused' ? '未使用' : 
+                         status === 'expired' ? '已过期' : status}:
+                      </span>
+                      <span style={{ fontWeight: 'bold', color: '#1976d2' }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 设备统计 */}
+              {dbStats.devices && (
+                <div style={{
+                  padding: '16px',
+                  background: '#e8f5e8',
+                  borderRadius: '8px',
+                  border: '1px solid #c8e6c9'
+                }}>
+                  <h4 style={{ color: '#388e3c', margin: '0 0 12px 0' }}>📱 设备管理</h4>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '6px',
+                    fontSize: '14px'
+                  }}>
+                    <span>总设备:</span>
+                    <span style={{ fontWeight: 'bold', color: '#388e3c' }}>{dbStats.devices.total}</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '14px'
+                  }}>
+                    <span>活跃设备:</span>
+                    <span style={{ fontWeight: 'bold', color: '#388e3c' }}>{dbStats.devices.active}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 积分统计 */}
+              {dbStats.points && (
+                <div style={{
+                  padding: '16px',
+                  background: '#fff3e0',
+                  borderRadius: '8px',
+                  border: '1px solid #ffcc02'
+                }}>
+                  <h4 style={{ color: '#f57c00', margin: '0 0 12px 0' }}>💰 积分系统</h4>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '6px',
+                    fontSize: '14px'
+                  }}>
+                    <span>记录总数:</span>
+                    <span style={{ fontWeight: 'bold', color: '#f57c00' }}>{dbStats.points.total}</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '14px'
+                  }}>
+                    <span>平均余额:</span>
+                    <span style={{ fontWeight: 'bold', color: '#f57c00' }}>{dbStats.points.avgBalance}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 其他表统计 */}
+              {Object.keys(dbStats).filter(key => !['cdks', 'devices', 'points', 'error'].includes(key)).map(tableName => (
+                <div key={tableName} style={{
+                  padding: '16px',
+                  background: '#f3e5f5',
+                  borderRadius: '8px',
+                  border: '1px solid #ce93d8'
+                }}>
+                  <h4 style={{ color: '#7b1fa2', margin: '0 0 12px 0' }}>
+                    📋 {tableName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '14px'
+                  }}>
+                    <span>记录数:</span>
+                    <span style={{ fontWeight: 'bold', color: '#7b1fa2' }}>{dbStats[tableName]}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {dbStats.error && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                backgroundColor: '#f8d7da',
+                border: '1px solid #f5c6cb',
+                borderRadius: '6px',
+                color: '#721c24'
+              }}>
+                ⚠️ 统计数据获取部分失败: {dbStats.error}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -490,6 +695,32 @@ export default function AdminPanel() {
                 📝 内容管理
               </div>
               <div
+                onClick={() => setCurrentView('cdk')}
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                  background: currentView === 'cdk' ? '#007bff' : 'transparent',
+                  color: currentView === 'cdk' ? 'white' : '#333'
+                }}
+              >
+                🎟️ CDK管理
+              </div>
+              <div
+                onClick={() => setCurrentView('logs')}
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                  background: currentView === 'logs' ? '#007bff' : 'transparent',
+                  color: currentView === 'logs' ? 'white' : '#333'
+                }}
+              >
+                📜 操作日志
+              </div>
+              <div
                 onClick={() => setCurrentView('database')}
                 style={{
                   padding: '12px 16px',
@@ -602,6 +833,14 @@ export default function AdminPanel() {
 
             {currentView === 'content' && (
               <ContentEditor />
+            )}
+
+            {currentView === 'cdk' && (
+              <CDKManager />
+            )}
+
+            {currentView === 'logs' && (
+              <LogsViewer />
             )}
 
             {currentView === 'database' && (
