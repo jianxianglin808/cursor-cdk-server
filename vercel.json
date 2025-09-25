@@ -1,16 +1,5 @@
 {
   "version": 2,
-  "name": "cursor-server",
-  "builds": [
-    {
-      "src": "pages/api/**/*.js",
-      "use": "@vercel/node",
-      "config": {
-        "runtime": "nodejs18.x",
-        "maxDuration": 60
-      }
-    }
-  ],
   "routes": [
     {
       "src": "/api/get_auth",
@@ -34,16 +23,9 @@
       }
     }
   ],
-  "env": {
-    "HMAC_KEY": "@hmac_key",
-    "WEB_AES_KEY": "@web_aes_key", 
-    "NODE_AES_KEY": "@node_aes_key",
-    "POSTGRES_URL": "@postgres_url",
-    "KV_URL": "@kv_url"
-  },
   "functions": {
-    "pages/api/get_restore_code.js": {
-      "maxDuration": 30
+    "pages/api/*.js": {
+      "maxDuration": 60
     }
   }
 }
